@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { IconBack, IconCheck, IconEdit } from "@/components/Icons";
+import { IconBack, IconEdit } from "@/components/Icons";
 import { FileLink, FilesEditor } from "@/components/Files";
 import { Seg, Sheet } from "@/components/Sheet";
 import { useData } from "@/lib/store";
@@ -22,7 +22,7 @@ export default function ItemPage() {
   const item = isNew ? null : items.find((i) => i.id === id);
   const [editing, setEditing] = useState(isNew);
 
-  useEffect(() => { if (!isNew && items.length && !item) router.replace("/path"); }, [isNew, items, item, router]);
+  useEffect(() => { if (!isNew && items.length && !item) router.replace("/requirements"); }, [isNew, items, item, router]);
 
   if (!isNew && !item) return null;
   const i = item ?? blank();
@@ -39,34 +39,38 @@ export default function ItemPage() {
 
       {!isNew && (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "0 4px" }}>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: "-.6px" }}>{i.title}</h1>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "0 6px" }}>
+            <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700, letterSpacing: "-.7px" }}>{i.title}</h1>
             <span className="sub" style={{ fontSize: 14 }}>
               {[i.due ? `Due ${fmtShort(i.due)}` : null, i.start_by ? `start by ${fmtShort(i.start_by)}` : null, steps.length > 1 && i.status !== "done" ? `step ${Math.min(i.step + 1, steps.length)} of ${steps.length}` : null].filter(Boolean).join(" · ")}
             </span>
           </div>
 
-          <div className="tile" style={{ padding: "8px 16px", gap: 0 }}>
-            {steps.map((s, k) => {
-              const state = k < i.step || i.status === "done" ? "done" : k === i.step ? "cur" : "";
-              return (
-                <div key={s + k} className="stp">
-                  <span className={`dot ${state}`}>{state === "done" ? <IconCheck /> : k + 1}</span>
-                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-                    <span style={{ fontSize: state === "cur" ? 16 : 15, fontWeight: state === "cur" ? 600 : 500 }} className={state === "done" ? "done-t" : ""}>{s}</span>
-                    {state === "cur" && (
-                      <>
-                        {i.note && <span className="sub" style={{ fontSize: 14, lineHeight: 1.4 }}>{i.note}</span>}
-                        <div className={i.link ? "btns" : ""} style={i.link ? {} : { display: "flex", flexDirection: "column" }}>
-                          {i.link && <a className="btn" href={i.link} target="_blank" rel="noopener">Open email</a>}
-                          <button type="button" className={i.link ? "btn ghost" : "btn"} onClick={() => advance(i)}>Done</button>
-                        </div>
-                      </>
-                    )}
+          <div className="tile" style={{ padding: "18px 16px" }}>
+            <div className="rail" style={{ gap: 22 }}>
+              {steps.map((s, k) => {
+                const state = k < i.step || i.status === "done" ? "done" : k === i.step ? (i.waiting_on ? "wait" : "now") : "";
+                return (
+                  <div key={s + k}>
+                    <span aria-hidden="true" className={`pin ${state}`} />
+                    <div className="tx" style={{ gap: 10 }}>
+                      <span style={{ fontSize: state === "now" ? 16 : 15, fontWeight: 600 }} className={state === "done" ? "done-t" : ""}>{s}</span>
+                      {(state === "now" || state === "wait") && (
+                        <>
+                          {i.note && <span className="sub" style={{ fontSize: 13, lineHeight: 1.4, marginTop: -6 }}>{i.note}</span>}
+                          {state === "wait" ? <span className="note">Waiting on {i.waiting_on}. Claude will update this when it arrives.</span> : (
+                            <div className={i.link ? "btns" : ""} style={i.link ? {} : { display: "flex", flexDirection: "column" }}>
+                              {i.link && <a className="btn" href={i.link} target="_blank" rel="noopener">Open email</a>}
+                              <button type="button" className={i.link ? "btn ghost" : "btn"} onClick={() => advance(i)}>Mark done</button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
           {i.step > 0 && <button type="button" className="sub" style={{ background: "none", border: "none", alignSelf: "flex-start", padding: "0 4px" }} onClick={() => undo(i)}>Undo last step</button>}
 
@@ -87,7 +91,7 @@ export default function ItemPage() {
             const row = isNew ? { ...next, id: `${next.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40)}-${Date.now().toString(36)}` } : next;
             if (await upsert("items", row)) { setEditing(false); if (isNew) router.replace(`/item/${row.id}`); }
           }}
-          onDelete={async () => { if (await remove("items", "id", i.id)) router.replace("/path"); }}
+          onDelete={async () => { if (await remove("items", "id", i.id)) router.replace("/requirements"); }}
         />
       )}
     </main>

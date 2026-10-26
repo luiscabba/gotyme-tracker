@@ -109,3 +109,44 @@ export function cutoffStats(c: ReturnType<typeof cutoff>, days: Record<string, D
 }
 
 export const isHoliday = (s: Settings, d: string) => s.holidays.find((h) => h.date === d);
+
+/* glass Today: when an item must start, and what it costs to wait */
+export type When = { text: string; tone: "now" | "soon" | "" };
+
+export function whenStart(d: string): When {
+  const t = today();
+  if (d < t) return { text: `Late, was ${fmtShort(d)}`, tone: "now" };
+  if (d === t) return { text: "Today", tone: "now" };
+  const n = diffDays(t, d);
+  if (n === 1) return { text: "Tomorrow", tone: "soon" };
+  if (n <= 6) return { text: `${fmtDay(d)}, ${fmtShort(d)}`, tone: n <= 2 ? "soon" : "" };
+  return { text: fmtShort(d), tone: "" };
+}
+
+export function costLine(i: Item, startDate: string): string {
+  const action = currentAction(i);
+  const head = action !== i.title ? i.title : "";
+  const due = i.due ? (i.due === startDate ? "needed by Day 1" : `due ${fmtShort(i.due)}`) : "";
+  return [head, due].filter(Boolean).join(" · ");
+}
+
+export function atRisk(items: Item[], startDate: string, n = 3): Item[] {
+  const t = today();
+  return items
+    .filter((i) => i.status !== "done" && !i.waiting_on && (i.start_by || i.due))
+    .filter((i) => (i.start_by ?? i.due)! <= addDays(t, 14) || (i.due ?? far) <= startDate)
+    .sort((a, b) => (a.start_by ?? a.due ?? far).localeCompare(b.start_by ?? b.due ?? far) || b.priority - a.priority || a.sort - b.sort)
+    .slice(0, n);
+}
+
+/* heat calendar load for one day: starts and tasks fill it, a deadline makes it hot */
+export function dayLoad(d: string, items: Item[], tasks: Task[]) {
+  const t = today();
+  const open = items.filter((i) => i.status !== "done");
+  const starts = open.filter((i) => !i.waiting_on && i.start_by && (i.start_by === d || (d === t && i.start_by < t))).length;
+  const dues = open.filter((i) => i.due === d);
+  const work = tasks.filter((k) => !k.done && k.due === d).length;
+  const load = starts + work;
+  const level = dues.length ? 3 : load >= 2 ? 2 : load === 1 ? 1 : 0;
+  return { level, urgent: dues.some((i) => i.priority >= 5) || dues.length >= 2, dues: dues.length, load };
+}

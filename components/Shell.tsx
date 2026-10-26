@@ -3,17 +3,18 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useData } from "@/lib/store";
-import { IconClock, IconFolder, IconGear, IconPath, IconToday, IconWork } from "./Icons";
+import { IconClock, IconDocs, IconFolder, IconGear, IconSpark, IconToday } from "./Icons";
 
 const TABS = [
   { href: "/", label: "Today", Icon: IconToday },
-  { href: "/path", label: "Path to Day 1", Icon: IconPath },
+  { href: "/requirements", label: "Requirements", Icon: IconDocs },
+  { href: "/claude", label: "Claude", Icon: IconSpark },
   { href: "/time", label: "Time and pay", Icon: IconClock },
-  { href: "/work", label: "Work", Icon: IconWork },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { ready, session } = useData();
+  const { ready, session, drafts } = useData();
+  const pending = drafts.filter((d) => d.status === "pending").length;
   const router = useRouter();
   const path = usePathname();
 
@@ -29,19 +30,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <nav className="nav" aria-label="Sections">
         {TABS.map(({ href, label, Icon }) => {
           const on = href === "/" ? path === "/" : path.startsWith(href);
-          return <Link key={href} href={href} aria-label={label} aria-current={on ? "page" : undefined}><Icon /></Link>;
+          return <Link key={href} href={href} aria-label={href === "/claude" && pending ? `${label}, ${pending} waiting` : label} aria-current={on ? "page" : undefined}><Icon />{href === "/claude" && pending > 0 && !on && <span className="badge" />}</Link>;
         })}
       </nav>
     </>
   );
 }
 
-export function Header({ title, children }: { title: string; children?: React.ReactNode }) {
+export function Header({ title, lead, children }: { title: string; lead?: React.ReactNode; children?: React.ReactNode }) {
   const { settings, error, setError } = useData();
   return (
     <>
       <div className="top">
-        <h1>{title}</h1>
+        <div className="row" style={{ gap: 10, minWidth: 0 }}>{lead}<h1>{title}</h1></div>
         <div className="row">
           {children}
           {settings?.drive_folder_url && (

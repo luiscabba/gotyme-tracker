@@ -15,3 +15,5 @@ export const IconFolder = ({ size = 18 }: P) => <S size={size}><path d="M3.5 7.5
 export const IconClip = ({ size = 16 }: P) => <S size={size}><path d="M8 12.5l5.5-5.5a3 3 0 0 1 4.2 4.2l-7 7a4.5 4.5 0 0 1-6.4-6.4L11 5" /></S>;
 export const IconMail = ({ size = 16 }: P) => <S size={size}><rect x="3.5" y="5.5" width="17" height="13" rx="2" /><path d="M4 7l8 6 8-6" /></S>;
 export const IconEdit = ({ size = 18 }: P) => <S size={size}><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></S>;
+export const IconDocs = (p: P) => <S {...p}><path d="M6 3.5h8l4 4v13H6z" /><path d="M14 3.5v4h4" /></S>;
+export const IconSpark = (p: P) => <S {...p}><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" /></S>;

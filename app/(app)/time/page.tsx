@@ -10,7 +10,7 @@ import { addDays, fmtLong, fmtShort, isWeekend, lastDay, monthName, pad, parse, 
 import type { Day } from "@/lib/types";
 
 export default function Time() {
-  const { settings, days, pay, upsert, remove } = useData();
+  const { settings, days, pay, items, upsert, remove } = useData();
   const t = today();
   const base = settings && t < settings.start_date ? settings.start_date : t;
   const [ym, setYm] = useState(base.slice(0, 7));
@@ -40,34 +40,40 @@ export default function Time() {
             const d = `${ym}-${pad(k + 1)}`;
             const r = days[d];
             const h = isHoliday(settings, d);
+            const isPay = d >= settings.start_date && (k + 1 === 15 || k + 1 === n);
+            const due = d < settings.start_date && d >= t && items.some((i) => i.status !== "done" && i.due === d);
             const cls = [
-              d === t ? "today" : r?.kind === "leave" ? "leave" : r?.kind === "absent" ? "absent" : r?.time_in ? "work" : h ? "hol" : d < settings.start_date || isWeekend(d) ? "faint" : "",
+              r?.kind === "leave" ? "leave" : r?.kind === "absent" ? "absent" : r?.time_in ? "work"
+                : d === settings.start_date ? "day1" : h ? "hol" : due ? "due" : isPay ? "pay"
+                : d < settings.start_date || d < t ? "faint" : isWeekend(d) ? "" : "wk",
+              d === t ? "today" : "",
               r?.time_in && isLate(r, settings) ? "late" : "",
             ].join(" ");
             return <button key={d} type="button" className={cls} onClick={() => setEdit(d)} aria-label={`${fmtLong(d)}${h ? `, ${h.name}` : ""}`}>{k + 1}</button>;
           })}
         </div>
         <div className="legend" style={{ paddingTop: 6 }}>
+          <span><i style={{ background: "var(--ink)" }} />Day 1</span>
+          <span><i style={{ background: "rgba(255,255,255,.9)", border: "1px solid rgba(20,21,26,.15)" }} />Workday</span>
           <span><i style={{ background: "var(--indigo)" }} />Worked</span>
-          <span><i style={{ background: "var(--lime)" }} />Today</span>
-          <span><i style={{ background: "var(--ok-soft)" }} />Leave</span>
-          <span><i style={{ background: "var(--indigo-soft)" }} />Holiday</span>
-          <span><i style={{ background: "var(--danger)", width: 6, height: 6 }} />Late</span>
+          <span><i style={{ background: "var(--lime)" }} />Payday</span>
+          <span><i style={{ background: "rgba(124,118,242,.5)" }} />Holiday</span>
+          <span><i style={{ background: "var(--heat)" }} />Docs due</span>
         </div>
       </div>
 
       <div className="pair">
-        <Link href="/settings" className="tile" style={{ gap: 2, textDecoration: "none", color: "inherit" }}><span style={{ fontSize: 22, fontWeight: 600 }}>{settings.vl ?? "Not set"}</span><span className="sub">vacation leave left</span></Link>
-        <Link href="/settings" className="tile" style={{ gap: 2, textDecoration: "none", color: "inherit" }}><span style={{ fontSize: 22, fontWeight: 600 }}>{settings.sl ?? "Not set"}</span><span className="sub">sick leave left</span></Link>
+        <Link href="/settings" className="tile" style={{ gap: 2, textDecoration: "none", color: "inherit" }}><span style={{ fontSize: settings.vl == null ? 17 : 24, fontWeight: 700 }}>{settings.vl ?? "Not set yet"}</span><span className="sub">vacation leave left</span></Link>
+        <Link href="/settings" className="tile" style={{ gap: 2, textDecoration: "none", color: "inherit" }}><span style={{ fontSize: settings.sl == null ? 17 : 24, fontWeight: 700 }}>{settings.sl ?? "Not set yet"}</span><span className="sub">sick leave left</span></Link>
       </div>
 
       <div className="tile dark">
-        <div className="between"><span style={{ fontSize: 15, fontWeight: 600 }}>{fmtShort(c.payday)} payslip check</span><span className={`chip ${status === "matched" ? "ok" : status === "mismatch" ? "danger" : ""}`} style={status === "waiting" ? { background: "#2A2B32", color: "#D7D9E0" } : {}}>{status === "matched" ? "Matches" : status === "mismatch" ? "Something is off" : "Waiting"}</span></div>
+        <div className="between"><span style={{ fontSize: 15, fontWeight: 600 }}>{fmtShort(c.payday)} payslip check</span><span className={`chip ${status === "matched" ? "ok" : status === "mismatch" ? "danger" : ""}`} style={status === "waiting" ? { background: "rgba(255,255,255,.14)", color: "#E4E6EC" } : {}}>{status === "matched" ? "Matches" : status === "mismatch" ? "Something is off" : "Waiting"}</span></div>
         <span className="sub">Cutoff {fmtShort(c.start)} to {fmtShort(c.end)}</span>
         <div className="trio">
-          <div><div className="num" style={{ fontSize: 22, fontWeight: 600, color: "var(--lime)" }}>{cs.worked}d</div><span className="sub">worked</span></div>
-          <div><div className="num" style={{ fontSize: 22, fontWeight: 600, color: "var(--lime)" }}>{cs.lates}</div><span className="sub">lates</span></div>
-          <div><div className="num" style={{ fontSize: 22, fontWeight: 600, color: "var(--lime)" }}>{(cs.ot / 60).toFixed(1)}h</div><span className="sub">over shift</span></div>
+          <div><div className="num" style={{ fontSize: 22, fontWeight: 700, color: "var(--lime)" }}>{cs.worked}d</div><span className="sub">worked</span></div>
+          <div><div className="num" style={{ fontSize: 22, fontWeight: 700, color: "var(--lime)" }}>{cs.lates}</div><span className="sub">lates</span></div>
+          <div><div className="num" style={{ fontSize: 22, fontWeight: 700, color: "var(--lime)" }}>{(cs.ot / 60).toFixed(1)}h</div><span className="sub">over shift</span></div>
         </div>
         {cs.leave > 0 && <span className="sub">{cs.leave} leave day{cs.leave > 1 ? "s" : ""} this cutoff</span>}
         <div className="btns">

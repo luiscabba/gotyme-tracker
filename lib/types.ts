@@ -57,6 +57,8 @@ export type Settings = {
   widget_token: string;
 };
 
+export type Draft = { id: string; created_at: string; title: string; to_name: string | null; to_addr: string | null; subject: string | null; body: string; link: string | null; item_id: string | null; status: "pending" | "sent" | "dismissed"; done_at: string | null; source: string };
+
 export type Activity = { id: number; at: string; text: string; source: string };
 
 export const GROUPS: Item["grp"][] = ["Offer and hiring", "Medical", "Clearances and school", "Government numbers and IDs", "Other"];
