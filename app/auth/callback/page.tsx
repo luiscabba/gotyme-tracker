@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { askReset, markUnlocked } from "@/lib/lock";
 
 function Callback() {
   const params = useSearchParams();
@@ -15,6 +16,8 @@ function Callback() {
         const { error } = await sb.auth.exchangeCodeForSession(code);
         if (error) { setErr("This sign-in link expired or was opened on another device. Request a new one."); return; }
       }
+      markUnlocked();
+      askReset(true);
       router.replace("/");
     })();
   }, [params, router]);

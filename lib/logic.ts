@@ -1,4 +1,4 @@
-import type { Day, Item, Settings, Task } from "./types";
+import type { Day, Item, Owner, Settings, Task } from "./types";
 import { addDays, diffDays, fmtDay, fmtShort, lastDay, nowHM, toMin, today } from "./dates";
 
 export function currentAction(i: Item): string {
@@ -133,7 +133,7 @@ export function costLine(i: Item, startDate: string): string {
 export function atRisk(items: Item[], startDate: string, n = 3): Item[] {
   const t = today();
   return items
-    .filter((i) => i.status !== "done" && !i.waiting_on && (i.start_by || i.due))
+    .filter((i) => i.status !== "done" && currentOwner(i) === "you" && (i.start_by || i.due))
     .filter((i) => (i.start_by ?? i.due)! <= addDays(t, 14) || (i.due ?? far) <= startDate)
     .sort((a, b) => (a.start_by ?? a.due ?? far).localeCompare(b.start_by ?? b.due ?? far) || b.priority - a.priority || a.sort - b.sort)
     .slice(0, n);
@@ -150,3 +150,12 @@ export function dayLoad(d: string, items: Item[], tasks: Task[]) {
   const level = dues.length ? 3 : load >= 2 ? 2 : load === 1 ? 1 : 0;
   return { level, urgent: dues.some((i) => i.priority >= 5) || dues.length >= 2, dues: dues.length, load };
 }
+
+/* who owns a step: Claude, Luis, or someone he's waiting on */
+export function ownerOf(i: Item, k: number): Owner {
+  const o = i.owners?.[k];
+  if (o) return o;
+  return k === i.step && i.waiting_on ? "them" : "you";
+}
+export const currentOwner = (i: Item) => (i.waiting_on ? "them" : ownerOf(i, i.step));
+export const ownerLabel = (i: Item, o: Owner) => (o === "claude" ? "Claude" : o === "you" ? "You" : i.waiting_on ?? "Them");

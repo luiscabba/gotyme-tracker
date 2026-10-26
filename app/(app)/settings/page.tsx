@@ -1,15 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Header } from "@/components/Shell";
 import { useData } from "@/lib/store";
-import { supabase } from "@/lib/supabase";
+import { askReset, lockNow } from "@/lib/lock";
 import { scriptableWidget } from "@/lib/widgetScript";
 import type { Settings } from "@/lib/types";
 
 export default function SettingsPage() {
   const { settings, upsert } = useData();
-  const router = useRouter();
   const [f, setF] = useState<Settings | null>(settings);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState("");
@@ -57,7 +55,10 @@ export default function SettingsPage() {
         <span className="sub">The feed link works without signing in, so keep it private. It shows only your next step and counts.</span>
       </section>
 
-      <button type="button" className="btn ghost" onClick={async () => { await supabase().auth.signOut(); router.replace("/login"); }}>Sign out</button>
+      <div className="btns">
+        <button type="button" className="btn ghost" onClick={() => { askReset(true); window.location.reload(); }}>Change passcode</button>
+        <button type="button" className="btn ghost" onClick={() => { lockNow(); window.location.reload(); }}>Lock now</button>
+      </div>
     </main>
   );
 }

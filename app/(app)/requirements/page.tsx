@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Header } from "@/components/Shell";
 import { IconCheck, IconNext, IconPlus } from "@/components/Icons";
 import { useData } from "@/lib/store";
-import { whenStart } from "@/lib/logic";
+import { currentAction, currentOwner, whenStart } from "@/lib/logic";
 import { addDays, fmtShort, today } from "@/lib/dates";
 import type { Item } from "@/lib/types";
 
@@ -18,7 +18,8 @@ export default function Requirements() {
   const open = items.filter((i) => i.status !== "done");
   const done = items.filter((i) => i.status === "done").sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
   const by = (a: Item, b: Item) => (a.start_by ?? a.due ?? far).localeCompare(b.start_by ?? b.due ?? far) || b.priority - a.priority || a.sort - b.sort;
-  const mine = open.filter((i) => !i.waiting_on);
+  const mine = open.filter((i) => currentOwner(i) === "you");
+  const claude = open.filter((i) => currentOwner(i) === "claude").sort(by);
   const now = mine.filter((i) => i.start_by && i.start_by <= addDays(t, 1)).sort(by);
   const soon = mine.filter((i) => i.start_by && i.start_by > addDays(t, 1)).sort(by);
   const anytime = mine.filter((i) => !i.start_by).sort(by);
@@ -42,6 +43,7 @@ export default function Requirements() {
 
       <Group name="Start now" list={now} line={(i) => { const w = whenStart(i.start_by!); return { text: w.text === "Today" ? "Start today" : w.text, tone: w.tone || "soon" }; }} />
       <Group name="Coming up" list={soon} line={(i) => ({ text: `Start ${whenStart(i.start_by!).text}`, tone: whenStart(i.start_by!).tone === "soon" ? "soon" : "" })} />
+      <Group name="Claude is on it" list={claude} line={(i) => ({ text: currentAction(i), tone: "claude" })} />
       <Group name="Waiting on others" list={waiting} line={(i) => ({ text: `Waiting on ${i.waiting_on}`, tone: "wait" })} />
       <Group name={before} list={anytime} line={(i) => ({ text: i.due && i.due !== settings.start_date ? `Due ${fmtShort(i.due)}` : "Anytime before", tone: "" })} />
 
@@ -79,7 +81,7 @@ function Group({ name, list, line }: { name: string; list: Item[]; line: (i: Ite
           return (
             <Link key={i.id} href={`/item/${i.id}`} className="lrow">
               <span aria-hidden="true" className={`sd ${l.tone}`} />
-              <span className="t"><b>{i.title}</b><small style={l.tone === "now" ? { color: "var(--danger)" } : l.tone === "soon" ? { color: "var(--amber-ink)" } : {}}>{l.text}</small></span>
+              <span className="t"><b>{i.title}</b><small style={l.tone === "now" ? { color: "var(--danger)" } : l.tone === "soon" ? { color: "var(--amber-ink)" } : l.tone === "claude" ? { color: "#4B6A00" } : {}}>{l.text}</small></span>
               <span className="chev"><IconNext /></span>
             </Link>
           );

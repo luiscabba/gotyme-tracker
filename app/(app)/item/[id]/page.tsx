@@ -7,11 +7,11 @@ import { FileLink, FilesEditor } from "@/components/Files";
 import { Seg, Sheet } from "@/components/Sheet";
 import { useData } from "@/lib/store";
 import { useActions } from "@/lib/actions";
-import { whenChip } from "@/lib/logic";
+import { ownerLabel, ownerOf, whenChip } from "@/lib/logic";
 import { fmtShort } from "@/lib/dates";
 import { GROUPS, type Item } from "@/lib/types";
 
-const blank = (): Item => ({ id: "", title: "", grp: "Other", due: null, start_by: null, status: "todo", steps: [], step: 0, waiting_on: null, priority: 0, note: null, link: null, files: [], sort: 99, source: "app", done_at: null });
+const blank = (): Item => ({ id: "", title: "", grp: "Other", due: null, start_by: null, status: "todo", steps: [], owners: [], step: 0, waiting_on: null, priority: 0, note: null, link: null, files: [], sort: 99, source: "app", done_at: null });
 
 export default function ItemPage() {
   const { id } = useParams<{ id: string }>();
@@ -33,7 +33,7 @@ export default function ItemPage() {
     <main className="wrap">
       <div className="row">
         <button type="button" className="icon-btn" onClick={() => router.back()} aria-label="Back"><IconBack /></button>
-        <span style={{ marginLeft: "auto" }} className={`chip ${i.status === "done" ? "ok" : i.waiting_on ? "soft" : c.tone}`}>{i.status === "done" ? "Done" : i.waiting_on ? `Waiting on ${i.waiting_on}` : c.text}</span>
+        <span style={{ marginLeft: "auto" }} className={`chip ${i.status === "done" ? "ok" : i.waiting_on ? "soft" : ownerOf(i, i.step) === "claude" ? "ok" : c.tone}`}>{i.status === "done" ? "Done" : i.waiting_on ? `Waiting on ${i.waiting_on}` : ownerOf(i, i.step) === "claude" ? "Claude is on it" : c.text}</span>
         {!isNew && <button type="button" className="icon-btn" onClick={() => setEditing(true)} aria-label="Edit"><IconEdit /></button>}
       </div>
 
@@ -49,12 +49,19 @@ export default function ItemPage() {
           <div className="tile" style={{ padding: "18px 16px" }}>
             <div className="rail" style={{ gap: 22 }}>
               {steps.map((s, k) => {
-                const state = k < i.step || i.status === "done" ? "done" : k === i.step ? (i.waiting_on ? "wait" : "now") : "";
+                const cur = k === i.step && i.status !== "done";
+                const own = cur && i.waiting_on ? "them" : ownerOf(i, k);
+                const state = k < i.step || i.status === "done" ? "done" : cur ? (i.waiting_on ? "wait" : own === "claude" ? "claude" : "now") : "";
+                const pin = state || (own === "you" ? "" : own);
                 return (
                   <div key={s + k}>
-                    <span aria-hidden="true" className={`pin ${state}`} />
+                    <span aria-hidden="true" className={`pin ${pin}`} />
                     <div className="tx" style={{ gap: 10 }}>
-                      <span style={{ fontSize: state === "now" ? 16 : 15, fontWeight: 600 }} className={state === "done" ? "done-t" : ""}>{s}</span>
+                      <span className="between" style={{ alignItems: "flex-start" }}>
+                        <span style={{ fontSize: state === "now" || state === "claude" ? 16 : 15, fontWeight: 600 }} className={state === "done" ? "done-t" : ""}>{s}</span>
+                        {state !== "done" && <span className={`own ${own}`}>{ownerLabel(i, own)}</span>}
+                      </span>
+                      {state === "claude" && <><span className="note">Claude is doing this step. It moves on when it is done.</span><button type="button" className="sub" style={{ background: "none", border: "none", padding: 0, alignSelf: "flex-start" }} onClick={() => advance(i)}>I did it myself</button></>}
                       {(state === "now" || state === "wait") && (
                         <>
                           {i.note && <span className="sub" style={{ fontSize: 13, lineHeight: 1.4, marginTop: -6 }}>{i.note}</span>}

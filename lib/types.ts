@@ -1,3 +1,5 @@
+export type Owner = "claude" | "you" | "them";
+
 export type FileRef = { name: string; url: string; kind: "email" | "drive" | "upload" | "link"; path?: string; at?: string };
 
 export type Item = {
@@ -8,6 +10,7 @@ export type Item = {
   start_by: string | null;
   status: "todo" | "doing" | "done";
   steps: string[];
+  owners: Owner[];
   step: number;
   waiting_on: string | null;
   priority: number;
@@ -55,10 +58,11 @@ export type Settings = {
   drive_folder_url: string | null;
   holidays: { date: string; name: string }[];
   widget_token: string;
+  passcode_set: boolean;
 };
 
-export type Draft = { id: string; created_at: string; title: string; to_name: string | null; to_addr: string | null; subject: string | null; body: string; link: string | null; item_id: string | null; status: "pending" | "sent" | "dismissed"; done_at: string | null; source: string };
+export type Draft = { id: string; created_at: string; title: string; to_name: string | null; to_addr: string | null; subject: string | null; body: string; link: string | null; item_id: string | null; status: "pending" | "approved" | "sent" | "dismissed"; kind: "email" | "calendar" | "form"; done_at: string | null; source: string };
 
-export type Activity = { id: number; at: string; text: string; source: string };
+export type Activity = { id: number; at: string; text: string; source: string; undo: { table: "items" | "tasks"; row: Record<string, unknown> } | null; undone_at: string | null };
 
 export const GROUPS: Item["grp"][] = ["Offer and hiring", "Medical", "Clearances and school", "Government numbers and IDs", "Other"];

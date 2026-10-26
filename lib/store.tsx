@@ -16,7 +16,7 @@ type Data = {
   drafts: Draft[];
   error: string;
   setError: (m: string) => void;
-  upsert: (table: "items" | "tasks" | "attendance" | "payslips" | "settings" | "drafts", row: Record<string, unknown>) => Promise<boolean>;
+  upsert: (table: "items" | "tasks" | "attendance" | "payslips" | "settings" | "drafts" | "activity", row: Record<string, unknown>) => Promise<boolean>;
   remove: (table: "items" | "tasks" | "attendance", key: string, value: string) => Promise<boolean>;
   log: (text: string) => void;
 };

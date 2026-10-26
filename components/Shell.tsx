@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { SetPasscodeScreen, UnlockScreen } from "./Lock";
+import { isFresh, wantsReset } from "@/lib/lock";
 import { useData } from "@/lib/store";
 import { IconClock, IconDocs, IconFolder, IconGear, IconSpark, IconToday } from "./Icons";
 
@@ -13,15 +15,21 @@ const TABS = [
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { ready, session, drafts } = useData();
+  const { ready, session, settings, drafts } = useData();
+  const [fresh, setFresh] = useState<boolean | null>(null);
+  const [reset, setReset] = useState(false);
   const pending = drafts.filter((d) => d.status === "pending").length;
-  const router = useRouter();
   const path = usePathname();
 
-  useEffect(() => { if (ready && !session) router.replace("/login"); }, [ready, session, router]);
+  useEffect(() => { setFresh(isFresh()); setReset(wantsReset()); }, [session]);
   useEffect(() => { if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {}); }, []);
 
-  if (!ready || !session) {
+  if (ready && fresh !== null) {
+    if (!session) return <UnlockScreen />;
+    if (settings && (!settings.passcode_set || reset)) return <SetPasscodeScreen isNew={!settings.passcode_set} onDone={() => window.location.reload()} />;
+    if (!fresh && settings?.passcode_set) return <UnlockScreen />;
+  }
+  if (!ready || !session || fresh === null) {
     return <div className="wrap"><div className="tile"><span className="sub">Loading your tracker</span></div></div>;
   }
   return (

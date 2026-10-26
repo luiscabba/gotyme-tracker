@@ -24,15 +24,17 @@ export default function Login() {
 
   return (
     <div className="wrap" style={{ paddingTop: "18vh" }}>
-      <div className="top"><h1>GoTyme Tracker</h1></div>
+      <div className="top"><h1>Reset your passcode</h1></div>
+      <span className="sub" style={{ padding: "0 6px" }}>We will email you a link. Open it on this device, then choose a new passcode.</span>
       <form className="tile" onSubmit={(e) => { e.preventDefault(); send(); }}>
         <div className="field">
           <label htmlFor="email">Email</label>
           <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
-        <button className="btn" type="submit" disabled={state === "sending"}>{state === "sending" ? "Sending" : "Email me a sign-in link"}</button>
+        <button className="btn" type="submit" disabled={state === "sending"}>{state === "sending" ? "Sending" : "Email me a link"}</button>
         {state === "sent" && <span className="sub">Check your inbox and open the link on this device.</span>}
         {state === "error" && <span className="banner">{msg}</span>}
+        <a href="/" className="sub" style={{ textAlign: "center" }}>Back to passcode</a>
       </form>
     </div>
   );
