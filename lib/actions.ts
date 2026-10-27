@@ -1,8 +1,8 @@
 "use client";
 import type { Item } from "./types";
 import { useData } from "./store";
-import { currentAction } from "./logic";
-import { nowHM, today } from "./dates";
+import { currentAction, ownerOf } from "./logic";
+import { addWorkdays, nowHM, today } from "./dates";
 
 export function useActions() {
   const { upsert, log, days } = useData();
@@ -14,6 +14,26 @@ export function useActions() {
     const label = currentAction(i);
     const ok = await upsert("items", { ...i, step, status: done ? "done" : "doing", done_at: done ? new Date().toISOString() : null });
     if (ok) log(done ? `Finished ${i.title}` : `Done: ${label}`);
+  }
+
+  /* what they owed came in: stop waiting and move past their step */
+  async function arrived(list: Item[]) {
+    let ok = true;
+    for (const i of list) {
+      const n = Math.max(1, i.steps.length);
+      const step = ownerOf(i, i.step) === "them" ? Math.min(n, i.step + 1) : i.step;
+      const done = step >= n;
+      ok = (await upsert("items", { ...i, waiting_on: null, step, status: done ? "done" : step > 0 ? "doing" : i.status, done_at: done ? new Date().toISOString() : null })) && ok;
+    }
+    if (ok && list[0]) log(`${list[0].waiting_on} came through: ${list.map((i) => i.title).join(", ")}`);
+    return ok;
+  }
+
+  /* a nudge went out: count it and set the next chase 3 workdays out */
+  async function chased(list: Item[]) {
+    const next = addWorkdays(today(), 3);
+    for (const i of list) await upsert("items", { ...i, chase_count: (i.chase_count ?? 0) + 1, chase_on: next });
+    if (list[0]) log(`Chased ${list[0].waiting_on}`);
   }
 
   async function undo(i: Item) {
@@ -37,5 +57,5 @@ export function useActions() {
     return upsert("attendance", { ...cur, breaks, time_out: now });
   }
 
-  return { advance, undo, clock };
+  return { advance, arrived, chased, undo, clock };
 }

@@ -35,35 +35,26 @@ async function vapid() {
 }
 
 const manilaToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-const dayDiff = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
 
-type Item = { title: string; steps: string[]; step: number; owners: string[] | null; waiting_on: string | null; start_by: string | null; due: string | null; updated_at: string; priority: number };
+type Item = { title: string; steps: string[]; step: number; owners: string[] | null; waiting_on: string | null; chase_on: string | null; start_by: string | null; due: string | null; priority: number };
 
+// One thing per reminder: chase someone, else start your next step, else send a ready email.
 async function digest() {
   const t = manilaToday();
-  const { data: s } = await admin.from("settings").select("start_date").eq("id", 1).single();
-  const { data: items } = await admin.from("items").select("title,steps,step,owners,waiting_on,start_by,due,updated_at,priority").neq("status", "done");
+  const { data: items } = await admin.from("items").select("title,steps,step,owners,waiting_on,chase_on,start_by,due,priority").neq("status", "done");
   const { data: drafts } = await admin.from("drafts").select("id").eq("status", "pending");
   const open = (items ?? []) as Item[];
-  const mine = open.filter((i) => !i.waiting_on && (i.owners?.[i.step] ?? "you") === "you");
   const key = (i: Item) => i.start_by ?? i.due ?? "9999-12-31";
-  const late = mine.filter((i) => key(i) <= t).sort((a, b) => key(a).localeCompare(key(b)) || b.priority - a.priority);
-  const chase = open.filter((i) => i.waiting_on && Date.now() - new Date(i.updated_at).getTime() > 4 * 864e5);
-  const nDrafts = drafts?.length ?? 0;
-  if (!late.length && !nDrafts && !chase.length) return null;
 
-  const toStart = s ? dayDiff(t, s.start_date) : 0;
-  const head = toStart > 0 ? `Day 1 in ${toStart} day${toStart === 1 ? "" : "s"}` : "GoTyme";
-  const title = late.length ? `${head} · ${late.length} to start now` : nDrafts ? `${head} · ${nDrafts} draft${nDrafts === 1 ? "" : "s"} need you` : `${head} · time to chase`;
-  const parts: string[] = [];
-  if (late.length) {
-    const i = late[0];
-    const action = i.steps?.[i.step] ?? i.title;
-    parts.push(`Next: ${action}${action !== i.title ? ` (${i.title})` : ""}`);
-  }
-  if (nDrafts && late.length) parts.push(`${nDrafts} draft${nDrafts === 1 ? "" : "s"} waiting for you`);
-  if (chase.length) parts.push(`Chase ${[...new Set(chase.map((i) => i.waiting_on))].join(", ")}`);
-  return { title, body: parts.join(". "), url: "/" };
+  const chase = open.filter((i) => i.waiting_on && i.chase_on && i.chase_on <= t).sort((a, b) => a.chase_on!.localeCompare(b.chase_on!));
+  if (chase.length) return { title: `Chase ${chase[0].waiting_on} today`, body: "", url: `/chase/${encodeURIComponent(chase[0].waiting_on!)}` };
+
+  const late = open.filter((i) => !i.waiting_on && (i.owners?.[i.step] ?? "you") === "you" && key(i) <= t).sort((a, b) => key(a).localeCompare(key(b)) || b.priority - a.priority);
+  if (late.length) return { title: `Today: ${late[0].steps?.[late[0].step] ?? late[0].title}`, body: "", url: "/" };
+
+  const n = drafts?.length ?? 0;
+  if (n) return { title: n === 1 ? "An email is ready to send" : `${n} emails are ready to send`, body: "", url: "/claude" };
+  return null;
 }
 
 async function pushAll(payload: { title: string; body: string; url: string }) {
@@ -96,7 +87,7 @@ Deno.serve(async (req) => {
     const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
     const { data } = await admin.auth.getUser(jwt);
     if (!data.user || data.user.email !== (await priv("owner_email"))) return json({ error: "not_owner" }, 401);
-    return json(await pushAll({ title: "Reminders are on", body: "You will get a nudge here when something needs you.", url: "/" }));
+    return json(await pushAll({ title: "Reminders are on", body: "", url: "/" }));
   }
 
   if (body.action === "send") {

@@ -13,6 +13,9 @@ export type Item = {
   owners: Owner[];
   step: number;
   waiting_on: string | null;
+  waiting_since: string | null;
+  chase_on: string | null;
+  chase_count: number;
   priority: number;
   note: string | null;
   link: string | null;

@@ -7,17 +7,17 @@ import { FileLink, FilesEditor } from "@/components/Files";
 import { Seg, Sheet } from "@/components/Sheet";
 import { useData } from "@/lib/store";
 import { useActions } from "@/lib/actions";
-import { ownerLabel, ownerOf, whenChip } from "@/lib/logic";
-import { fmtShort } from "@/lib/dates";
+import { chaseDue, ownerLabel, ownerOf, whenChip } from "@/lib/logic";
+import { fmtLong, fmtShort, today, workdaysBetween } from "@/lib/dates";
 import { GROUPS, type Item } from "@/lib/types";
 
-const blank = (): Item => ({ id: "", title: "", grp: "Other", due: null, start_by: null, status: "todo", steps: [], owners: [], step: 0, waiting_on: null, priority: 0, note: null, link: null, files: [], sort: 99, source: "app", done_at: null });
+const blank = (): Item => ({ id: "", title: "", grp: "Other", due: null, start_by: null, status: "todo", steps: [], owners: [], step: 0, waiting_on: null, waiting_since: null, chase_on: null, chase_count: 0, priority: 0, note: null, link: null, files: [], sort: 99, source: "app", done_at: null });
 
 export default function ItemPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { items, upsert, remove } = useData();
-  const { advance, undo } = useActions();
+  const { advance, arrived, undo } = useActions();
   const isNew = id === "new";
   const item = isNew ? null : items.find((i) => i.id === id);
   const [editing, setEditing] = useState(isNew);
@@ -28,12 +28,15 @@ export default function ItemPage() {
   const i = item ?? blank();
   const c = whenChip(i);
   const steps = i.steps.length ? i.steps : [i.title];
+  const waiting = !isNew && i.status !== "done" && !!i.waiting_on;
+  const due = chaseDue(i);
+  const waited = i.waiting_since ? workdaysBetween(i.waiting_since, today()) : 0;
 
   return (
     <main className="wrap">
       <div className="row">
         <button type="button" className="icon-btn" onClick={() => router.back()} aria-label="Back"><IconBack /></button>
-        <span style={{ marginLeft: "auto" }} className={`chip ${i.status === "done" ? "ok" : i.waiting_on ? "soft" : ownerOf(i, i.step) === "claude" ? "ok" : c.tone}`}>{i.status === "done" ? "Done" : i.waiting_on ? `Waiting on ${i.waiting_on}` : ownerOf(i, i.step) === "claude" ? "Claude is on it" : c.text}</span>
+        <span style={{ marginLeft: "auto" }} className={`chip ${i.status === "done" ? "ok" : due ? "danger" : i.waiting_on ? "soft" : ownerOf(i, i.step) === "claude" ? "ok" : c.tone}`}>{i.status === "done" ? "Done" : due ? `Chase ${i.waiting_on} today` : i.waiting_on ? `Waiting on ${i.waiting_on}` : ownerOf(i, i.step) === "claude" ? "Claude is on it" : c.text}</span>
         {!isNew && <button type="button" className="icon-btn" onClick={() => setEditing(true)} aria-label="Edit"><IconEdit /></button>}
       </div>
 
@@ -46,7 +49,25 @@ export default function ItemPage() {
             </span>
           </div>
 
-          <div className="tile" style={{ padding: "18px 16px" }}>
+          {waiting && (
+            <>
+              <div className="tile" style={{ padding: 18, gap: 14 }}>
+                <span className="between" style={{ alignItems: "flex-start" }}>
+                  <span style={{ fontSize: 16, fontWeight: 600 }}>{steps[Math.min(i.step, steps.length - 1)]}</span>
+                  <span className="own them">{i.waiting_on}</span>
+                </span>
+                {due
+                  ? <span style={{ fontSize: 14, fontWeight: 600, color: "var(--danger)" }}>{waited > 0 ? `Waiting ${waited} workday${waited === 1 ? "" : "s"}. ` : ""}Time to chase.</span>
+                  : <span className="sub" style={{ fontSize: 14 }}>{i.waiting_since ? `Waiting since ${fmtLong(i.waiting_since)}` : `Waiting on ${i.waiting_on}`}{i.chase_on ? ` · chase ${fmtLong(i.chase_on)}` : ""}</span>}
+                {due
+                  ? <Link className="btn" href={`/chase/${encodeURIComponent(i.waiting_on!)}`} style={{ height: 52, fontSize: 16 }}>Chase {i.waiting_on}</Link>
+                  : <button type="button" className="sub" style={{ background: "none", border: "none", padding: 0, alignSelf: "flex-start" }} onClick={() => arrived([i])}>It arrived</button>}
+              </div>
+              {steps[i.step + 1] && <span className="sub" style={{ padding: "0 6px", fontSize: 13 }}>Next: {steps[i.step + 1]}</span>}
+            </>
+          )}
+
+          {!waiting && <div className="tile" style={{ padding: "18px 16px" }}>
             <div className="rail" style={{ gap: 22 }}>
               {steps.map((s, k) => {
                 const cur = k === i.step && i.status !== "done";
@@ -78,8 +99,8 @@ export default function ItemPage() {
                 );
               })}
             </div>
-          </div>
-          {i.step > 0 && <button type="button" className="sub" style={{ background: "none", border: "none", alignSelf: "flex-start", padding: "0 4px" }} onClick={() => undo(i)}>Undo last step</button>}
+          </div>}
+          {!waiting && i.step > 0 && <button type="button" className="sub" style={{ background: "none", border: "none", alignSelf: "flex-start", padding: "0 4px" }} onClick={() => undo(i)}>Undo last step</button>}
 
           <section style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div className="sec"><span>Files</span><span>{i.files.length || ""}</span></div>
@@ -128,6 +149,7 @@ function ItemEditor({ item, isNew, onClose, onSave, onDelete }: { item: Item; is
         <div className="field"><label htmlFor="it-grp">Group</label><select id="it-grp" value={f.grp} onChange={(e) => set("grp", e.target.value as Item["grp"])}>{GROUPS.map((g) => <option key={g}>{g}</option>)}</select></div>
         <div className="field"><label htmlFor="it-wait">Waiting on</label><input id="it-wait" placeholder="Nobody" value={f.waiting_on ?? ""} onChange={(e) => set("waiting_on", e.target.value.trim() ? e.target.value : null)} /></div>
       </div>
+      {f.waiting_on && f.waiting_on === item.waiting_on && <div className="field"><label htmlFor="it-chase">Chase on</label><input id="it-chase" type="date" value={f.chase_on ?? ""} onChange={(e) => set("chase_on", e.target.value || null)} /></div>}
       <div className="field"><label htmlFor="it-note">Notes</label><textarea id="it-note" value={f.note ?? ""} onChange={(e) => set("note", e.target.value || null)} /></div>
       <div className="field"><label htmlFor="it-link">Email or page link</label><input id="it-link" type="url" value={f.link ?? ""} onChange={(e) => set("link", e.target.value || null)} /></div>
       <FilesEditor owner={item.id || "new"} files={f.files} onChange={(files) => set("files", files)} />

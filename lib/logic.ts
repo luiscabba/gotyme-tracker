@@ -157,5 +157,14 @@ export function ownerOf(i: Item, k: number): Owner {
   if (o) return o;
   return k === i.step && i.waiting_on ? "them" : "you";
 }
+export const chaseDue = (i: Item, t = today()) => !!(i.status !== "done" && i.waiting_on && i.chase_on && i.chase_on <= t);
+
+/* people to chase today, each with the items they owe */
+export function chasesDue(items: Item[]): { who: string; items: Item[] }[] {
+  const by = new Map<string, Item[]>();
+  for (const i of items) if (chaseDue(i)) by.set(i.waiting_on!, [...(by.get(i.waiting_on!) ?? []), i]);
+  return [...by].map(([who, list]) => ({ who, items: list })).sort((a, b) => a.items[0].chase_on!.localeCompare(b.items[0].chase_on!));
+}
+
 export const currentOwner = (i: Item) => (i.waiting_on ? "them" : ownerOf(i, i.step));
 export const ownerLabel = (i: Item, o: Owner) => (o === "claude" ? "Claude" : o === "you" ? "You" : i.waiting_on ?? "Them");

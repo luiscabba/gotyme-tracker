@@ -28,6 +28,18 @@ export function addDays(s: string, n: number): string {
   return ymd(d);
 }
 
+export function addWorkdays(s: string, n: number): string {
+  let d = s;
+  for (let c = 0; c < n; ) { d = addDays(d, 1); if (![0, 6].includes(parse(d).getUTCDay())) c++; }
+  return d;
+}
+
+export function workdaysBetween(a: string, b: string): number {
+  let n = 0;
+  for (let d = addDays(a, 1); d <= b; d = addDays(d, 1)) if (![0, 6].includes(parse(d).getUTCDay())) n++;
+  return n;
+}
+
 export const diffDays = (a: string, b: string) => Math.round((parse(b).getTime() - parse(a).getTime()) / 864e5);
 export const dow = (s: string) => parse(s).getUTCDay();
 export const isWeekend = (s: string) => [0, 6].includes(dow(s));
