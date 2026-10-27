@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "GoTyme Tracker",
-    short_name: "GoTyme",
+    name: "Tracker",
+    short_name: "Tracker",
     start_url: "/",
     display: "standalone",
     background_color: "#F4F5F8",

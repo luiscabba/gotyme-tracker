@@ -8,8 +8,8 @@ self.addEventListener("fetch", (e) => {
 });
 self.addEventListener("push", (e) => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch { d = { title: "GoTyme", body: e.data ? e.data.text() : "" }; }
-  e.waitUntil(self.registration.showNotification(d.title || "GoTyme", { body: d.body || "", icon: "/icon-192.png", badge: "/icon-192.png", data: { url: d.url || "/" } }));
+  try { d = e.data ? e.data.json() : {}; } catch { d = { title: "Tracker", body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Tracker", { body: d.body || "", icon: "/icon-192.png", badge: "/icon-192.png", data: { url: d.url || "/" } }));
 });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();

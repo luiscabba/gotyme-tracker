@@ -1,5 +1,5 @@
 export function scriptableWidget(feedUrl: string, appUrl: string): string {
-  return `// GoTyme Tracker widget for Scriptable (iPhone)
+  return `// Tracker widget for Scriptable (iPhone)
 const FEED = "${feedUrl}";
 const APP = "${appUrl}";
 const d = await new Request(FEED).loadJSON();

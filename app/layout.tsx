@@ -4,9 +4,9 @@ import { DataProvider } from "@/lib/store";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GoTyme Tracker",
+  title: "Tracker",
   description: "Onboarding, attendance and work tracker for GoTyme",
-  appleWebApp: { capable: true, title: "GoTyme", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Tracker", statusBarStyle: "default" },
   icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" },
 };
 

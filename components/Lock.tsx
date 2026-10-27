@@ -62,7 +62,7 @@ export function UnlockScreen() {
   }, []);
   return (
     <main className="lock-wrap">
-      <Keypad title="GoTyme Tracker" sub={sub} tone={tone} busy={busy} onCode={onCode} />
+      <Keypad title="Tracker" sub={sub} tone={tone} busy={busy} onCode={onCode} />
       <Link href="/login" className="sub lock-alt" style={noCode ? { fontWeight: 600, color: "var(--ink)" } : {}}>Forgot passcode? Email me a link</Link>
     </main>
   );
