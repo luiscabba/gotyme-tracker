@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, OWNER_EMAIL } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useData } from "@/lib/store";
 
 export default function Login() {
   const { session } = useData();
   const router = useRouter();
-  const [email, setEmail] = useState(OWNER_EMAIL);
+  const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [msg, setMsg] = useState("");
 

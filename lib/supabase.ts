@@ -12,5 +12,3 @@ export function supabase(): SupabaseClient {
   }
   return client;
 }
-
-export const OWNER_EMAIL = "luiscabmadrid@gmail.com";
