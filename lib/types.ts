@@ -68,4 +68,8 @@ export type Draft = { id: string; created_at: string; title: string; to_name: st
 
 export type Activity = { id: number; at: string; text: string; source: string; undo: { table: "items" | "tasks"; row: Record<string, unknown> } | null; undone_at: string | null };
 
+export type Doc = { id: string; name: string; category: string; number: string | null; expires_on: string | null; remind_days: number; files: FileRef[]; note: string | null; sort: number };
+
+export const DOC_CATEGORIES = ["IDs", "Government numbers", "Birth and family", "School", "Work", "Health", "Money", "Other"];
+
 export const GROUPS: Item["grp"][] = ["Offer and hiring", "Medical", "Clearances and school", "Government numbers and IDs", "Other"];

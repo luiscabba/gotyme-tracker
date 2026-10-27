@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
-import type { Activity, Day, Draft, Item, Payslip, Settings, Task } from "./types";
+import type { Activity, Day, Doc, Draft, Item, Payslip, Settings, Task } from "./types";
 
 type Data = {
   ready: boolean;
@@ -14,10 +14,11 @@ type Data = {
   pay: Record<string, Payslip>;
   activity: Activity[];
   drafts: Draft[];
+  docs: Doc[];
   error: string;
   setError: (m: string) => void;
-  upsert: (table: "items" | "tasks" | "attendance" | "payslips" | "settings" | "drafts" | "activity", row: Record<string, unknown>) => Promise<boolean>;
-  remove: (table: "items" | "tasks" | "attendance", key: string, value: string) => Promise<boolean>;
+  upsert: (table: "items" | "tasks" | "attendance" | "payslips" | "settings" | "drafts" | "activity" | "documents", row: Record<string, unknown>) => Promise<boolean>;
+  remove: (table: "items" | "tasks" | "attendance" | "documents", key: string, value: string) => Promise<boolean>;
   log: (text: string) => void;
 };
 
@@ -35,6 +36,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [pay, setPay] = useState<Record<string, Payslip>>({});
   const [activity, setActivity] = useState<Activity[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [docs, setDocs] = useState<Doc[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -63,6 +65,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }));
     if (want("activity")) jobs.push(sb.from("activity").select("*").order("at", { ascending: false }).limit(40).then(({ data }) => data && setActivity(data as Activity[])));
     if (want("drafts")) jobs.push(sb.from("drafts").select("*").order("created_at", { ascending: false }).limit(40).then(({ data }) => data && setDrafts(data as Draft[])));
+    if (want("documents")) jobs.push(sb.from("documents").select("*").order("sort").then(({ data }) => data && setDocs(data as Doc[])));
     await Promise.all(jobs);
   }, [sb]);
 
@@ -70,7 +73,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!session) return;
     load().then(() => setLoaded(true));
     const ch = sb.channel("all");
-    ["settings", "items", "tasks", "attendance", "payslips", "activity", "drafts"].forEach((t) =>
+    ["settings", "items", "tasks", "attendance", "payslips", "activity", "drafts", "documents"].forEach((t) =>
       ch.on("postgres_changes", { event: "*", schema: "public", table: t }, () => load(t))
     );
     ch.subscribe();
@@ -96,8 +99,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const log = useCallback((text: string) => { sb.from("activity").insert({ text, source: "app" }).then(() => load("activity")); }, [sb, load]);
 
   const value = useMemo<Data>(() => ({
-    ready: authChecked && (!session || loaded), session, settings, items, tasks, days, pay, activity, drafts, error, setError, upsert, remove, log,
-  }), [authChecked, session, loaded, settings, items, tasks, days, pay, activity, drafts, error, upsert, remove, log]);
+    ready: authChecked && (!session || loaded), session, settings, items, tasks, days, pay, activity, drafts, docs, error, setError, upsert, remove, log,
+  }), [authChecked, session, loaded, settings, items, tasks, days, pay, activity, drafts, docs, error, upsert, remove, log]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -38,7 +38,7 @@ const manilaToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Man
 
 type Item = { title: string; steps: string[]; step: number; owners: string[] | null; waiting_on: string | null; chase_on: string | null; start_by: string | null; due: string | null; priority: number };
 
-// One thing per reminder: chase someone, else start your next step, else send a ready email.
+// One thing per reminder: chase someone, else start your next step, else renew a document, else send a ready email.
 async function digest() {
   const t = manilaToday();
   const { data: items } = await admin.from("items").select("title,steps,step,owners,waiting_on,chase_on,start_by,due,priority").neq("status", "done");
@@ -51,6 +51,10 @@ async function digest() {
 
   const late = open.filter((i) => !i.waiting_on && (i.owners?.[i.step] ?? "you") === "you" && key(i) <= t).sort((a, b) => key(a).localeCompare(key(b)) || b.priority - a.priority);
   if (late.length) return { title: `Today: ${late[0].steps?.[late[0].step] ?? late[0].title}`, body: "", url: "/" };
+
+  const { data: docs } = await admin.from("documents").select("id,name,expires_on,remind_days").not("expires_on", "is", null).order("expires_on");
+  const renew = (docs ?? []).find((d) => new Date(Date.parse(d.expires_on) - d.remind_days * 864e5).toISOString().slice(0, 10) <= t);
+  if (renew) return { title: `Renew your ${renew.name}`, body: "", url: `/files/${renew.id}` };
 
   const n = drafts?.length ?? 0;
   if (n) return { title: n === 1 ? "An email is ready to send" : `${n} emails are ready to send`, body: "", url: "/claude" };

@@ -88,7 +88,9 @@ a{color:var(--indigo-ink)}
 .heat .d.l1{background:var(--lime-soft)}
 .heat .d.l2{background:rgba(198,244,50,.85)}
 .heat .d.l3{background:var(--heat)}
-.heat .d.today{box-shadow:0 0 0 2px var(--ink)}
+.heat .d.today{font-weight:800}
+.heat .d.sel{box-shadow:0 0 0 2px var(--ink), 0 0 0 4px #FFFFFF}
+.heat button.d{font-family:inherit; cursor:pointer; padding:0; width:100%}
 .heat .d i{position:absolute; top:5px; right:6px; width:5px; height:5px; border-radius:99px; background:var(--red)}
 .heat .d.day1{grid-column:span 2; justify-content:space-between; padding:0 12px; background:var(--ink); color:#FFFFFF; border-color:var(--ink); font-size:14px; font-weight:700}
 .heat .d.day1 small{font-size:12px; letter-spacing:.4px}

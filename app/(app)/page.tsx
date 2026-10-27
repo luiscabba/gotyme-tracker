@@ -1,65 +1,102 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { Header } from "@/components/Shell";
-import { TaskRow } from "@/components/TaskRow";
+import { IconNext } from "@/components/Icons";
 import { useData } from "@/lib/store";
 import { useActions } from "@/lib/actions";
-import { atRisk, costLine, currentAction, cutoff, cutoffStats, dayLoad, isLate, netMin, whenStart } from "@/lib/logic";
-import { addDays, diffDays, dow, fmt12, fmtDur, fmtLong, isWeekend, today, toMin } from "@/lib/dates";
+import { chasesDue, currentAction, currentOwner, cutoff, cutoffStats, dayLoad, isLate, netMin } from "@/lib/logic";
+import { addDays, diffDays, dow, fmt12, fmtDur, fmtLong, fmtShort, isWeekend, today, toMin } from "@/lib/dates";
+
+type Row = { key: string; title: string; line: string; tone: "late" | "due" | "you" | "claude" | "wait"; href: string };
+
+const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
 export default function Today() {
-  const { settings, items, tasks, upsert } = useData();
-  if (!settings) return null;
+  const { settings } = useData();
   const t = today();
+  const [picked, setPicked] = useState(t);
+  if (!settings) return null;
   const toStart = diffDays(t, settings.start_date);
   const employed = toStart <= 0;
-  const risk = atRisk(items, settings.start_date);
-  const dueToday = tasks.filter((k) => k.due === t || (!k.done && k.due && k.due < t)).sort((a, b) => (a.at_time ?? "99").localeCompare(b.at_time ?? "99"));
 
   return (
     <main className="wrap">
       <Header title={fmtLong(t)}>
         <span style={{ fontSize: 14, fontWeight: 600, color: "var(--muted)" }}>{employed ? `Day ${1 - toStart}` : toStart === 1 ? "Day 1 is tomorrow" : `${toStart} days to Day 1`}</span>
       </Header>
-
-      <HeatCalendar />
-
-      {employed && <ClockTile />}
-
-      {risk.length > 0 && (
-        <section className="tile" aria-label="At risk" style={{ gap: 16 }}>
-          <div className="between"><span style={{ fontSize: 13, fontWeight: 600 }}>At risk</span><span className="sub">start by</span></div>
-          <div className="rail">
-            {risk.map((i) => {
-              const w = whenStart(i.start_by ?? i.due!);
-              return (
-                <Link key={i.id} href={`/item/${i.id}`}>
-                  <span aria-hidden="true" className={`pin ${w.tone}`} />
-                  <span className="tx">
-                    <span className={`when ${w.tone}`}>{w.text}</span>
-                    <span className="what">{currentAction(i)}</span>
-                    {costLine(i, settings.start_date) && <span className="why">{costLine(i, settings.start_date)}</span>}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
+      <HeatCalendar picked={picked} onPick={setPicked} />
+      <DayCard d={picked} onBack={() => setPicked(t)} />
+      {employed && picked === t && <ClockTile />}
       <ClaudeStrip />
-
-      {employed && dueToday.length > 0 && (
-        <section style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div className="sec"><span>Due today</span><Link href="/work" className="sub">All work</Link></div>
-          <div className="tile flush">{dueToday.map((k) => <TaskRow key={k.id} k={k} onToggle={() => upsert("tasks", { ...k, done: !k.done, done_at: !k.done ? new Date().toISOString() : null })} />)}</div>
-        </section>
-      )}
     </main>
   );
 }
 
-function HeatCalendar() {
+function useDayRows(d: string): Row[] {
+  const { items, tasks, docs } = useData();
+  const t = today();
+  const open = items.filter((i) => i.status !== "done");
+  const rows: Row[] = [];
+  const seen = new Set<string>();
+  const add = (r: Row) => { if (!seen.has(r.key)) { seen.add(r.key); rows.push(r); } };
+
+  for (const i of open.filter((x) => x.due === d)) add({ key: i.id, title: i.title, line: d === t ? "Due today" : "Due", tone: "due", href: `/item/${i.id}` });
+  if (d === t) {
+    for (const c of chasesDue(open)) add({ key: `chase-${c.who}`, title: `Chase ${c.who}`, line: `${c.items.map((i) => i.title).join(", ")}${c.items[0].waiting_since ? ` · waiting since ${fmtShort(c.items[0].waiting_since)}` : ""}`, tone: "wait", href: `/chase/${encodeURIComponent(c.who)}` });
+    for (const i of open.filter((x) => currentOwner(x) === "you" && x.start_by && x.start_by <= t)) add({ key: i.id, title: i.title, line: lateLine(i), tone: i.start_by! < t ? "late" : "you", href: `/item/${i.id}` });
+  } else {
+    const byWho = new Map<string, string[]>();
+    for (const i of open.filter((x) => x.waiting_on && x.chase_on === d)) byWho.set(i.waiting_on!, [...(byWho.get(i.waiting_on!) ?? []), i.title]);
+    for (const [who, titles] of byWho) add({ key: `chase-${who}`, title: `Chase ${who}`, line: titles.join(", "), tone: "wait", href: `/chase/${encodeURIComponent(who)}` });
+    for (const i of open.filter((x) => x.start_by === d && !x.waiting_on)) {
+      const own = currentOwner(i);
+      add({ key: i.id, title: i.title, line: own === "claude" ? `Claude: ${lower(currentAction(i))}` : `Start: ${lower(currentAction(i))}`, tone: own === "claude" ? "claude" : "you", href: `/item/${i.id}` });
+    }
+  }
+  for (const k of tasks.filter((x) => !x.done && x.due && (x.due === d || (d === t && x.due < t)))) add({ key: `task-${k.id}`, title: k.title, line: k.due! < t ? "Overdue" : k.at_time ? fmt12(k.at_time.slice(0, 5)) : "Due", tone: k.due! < t ? "late" : "due", href: `/work?edit=${k.id}` });
+  for (const doc of docs.filter((x) => x.expires_on === d)) add({ key: `doc-${doc.id}`, title: doc.name, line: "Expires", tone: "due", href: `/files/${doc.id}` });
+  return rows;
+
+  function lateLine(i: (typeof open)[number]) {
+    const a = currentAction(i);
+    return i.start_by! < t ? `${a} · late since ${fmtShort(i.start_by!)}` : `Start today: ${lower(a)}`;
+  }
+}
+
+function DayCard({ d, onBack }: { d: string; onBack: () => void }) {
+  const { settings } = useData();
+  const t = today();
+  const rows = useDayRows(d);
+  const heading = d === t ? "Today" : `${fmtLong(d)}${settings && d === settings.start_date ? " · Day 1" : ""}`;
+  const dot: Record<Row["tone"], React.CSSProperties> = {
+    late: { background: "var(--red)" },
+    due: { background: "var(--red)" },
+    you: { border: "3px solid rgba(20,21,26,.35)" },
+    claude: { background: "var(--lime)", border: "1px solid var(--lime-deep)" },
+    wait: { border: "3px solid var(--indigo)" },
+  };
+  const ink: Record<Row["tone"], string> = { late: "var(--danger)", due: "var(--amber-ink)", you: "var(--muted)", claude: "#4B6A00", wait: "var(--indigo-ink)" };
+
+  return (
+    <section className="tile flush" aria-label={heading} style={{ paddingTop: 6, paddingBottom: 8 }}>
+      <div className="between" style={{ alignItems: "baseline", padding: "10px 0 4px" }}>
+        <span style={{ fontSize: 17, fontWeight: 700 }}>{heading}</span>
+        {d !== t && <button type="button" className="sub" style={{ background: "none", border: "none", padding: "4px 0", fontSize: 13 }} onClick={onBack}>Back to today</button>}
+      </div>
+      {rows.length === 0 && <span className="sub" style={{ fontSize: 14, padding: "10px 0 12px" }}>{d === t ? "Nothing needs you today." : "Nothing on this day."}</span>}
+      {rows.map((r) => (
+        <Link key={r.key} href={r.href} className="lrow" style={{ minHeight: 56 }}>
+          <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 99, flex: "none", boxSizing: "border-box", ...dot[r.tone] }} />
+          <span className="t"><b>{r.title}</b><small style={{ color: ink[r.tone] }}>{r.line}</small></span>
+          <span className="chev"><IconNext /></span>
+        </Link>
+      ))}
+    </section>
+  );
+}
+
+function HeatCalendar({ picked, onPick }: { picked: string; onPick: (d: string) => void }) {
   const { settings, items, tasks } = useData();
   if (!settings) return null;
   const t = today();
@@ -67,19 +104,21 @@ function HeatCalendar() {
   const until = settings.start_date > t && diffDays(monday, settings.start_date) <= 27 ? settings.start_date : addDays(monday, 13);
   const cells: string[] = [];
   for (let d = monday; d <= until; d = addDays(d, 1)) cells.push(d);
+  const chaseDays = new Set(items.filter((i) => i.status !== "done" && i.waiting_on && i.chase_on).map((i) => i.chase_on!));
   return (
     <div className="tile" style={{ padding: 14, gap: 8 }}>
       <div className="heat">
         {"MTWTFSS".split("").map((d, k) => <span key={k} className="h">{d}</span>)}
         {cells.map((d) => {
           const day = Number(d.slice(8));
-          if (d === settings.start_date) return <div key={d} className="d day1" aria-label={`${fmtLong(d)}, Day 1`}><span>{day}</span><small>Day 1</small></div>;
-          if (d < t) return <div key={d} className="d past">{day}</div>;
+          const sel = d === picked ? "sel" : "";
+          if (d === settings.start_date) return <button type="button" key={d} className={`d day1 ${sel}`} aria-label={`${fmtLong(d)}, Day 1`} aria-pressed={d === picked} onClick={() => onPick(d)}><span>{day}</span><small>Day 1</small></button>;
           const l = dayLoad(d, items, tasks);
+          const level = Math.max(l.level, chaseDays.has(d) ? 1 : 0);
           return (
-            <div key={d} className={`d ${l.level ? `l${l.level}` : ""} ${d === t ? "today" : ""}`} aria-label={`${fmtLong(d)}${l.dues ? `, ${l.dues} due` : ""}${l.load ? `, ${l.load} to start` : ""}`}>
-              {day}{l.urgent && <i />}
-            </div>
+            <button type="button" key={d} className={`d ${d < t ? "past" : level ? `l${level}` : ""} ${d === t ? "today" : ""} ${sel}`} aria-pressed={d === picked} onClick={() => onPick(d)} aria-label={`${fmtLong(d)}${l.dues ? `, ${l.dues} due` : ""}${l.load ? `, ${l.load} to start` : ""}`}>
+              {day}{l.urgent && d >= t && <i />}
+            </button>
           );
         })}
       </div>
@@ -88,17 +127,16 @@ function HeatCalendar() {
 }
 
 function ClaudeStrip() {
-  const { drafts, activity } = useData();
+  const { drafts } = useData();
   const pending = drafts.filter((d) => d.status === "pending");
-  const last = activity.find((a) => a.source === "agent");
+  if (!pending.length) return null;
+  const emails = pending.every((d) => d.kind === "email");
+  const n = pending.length;
   return (
     <Link href="/claude" className="tile" style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: "14px 14px 14px 16px", color: "inherit", textDecoration: "none" }}>
-      <span className="orb" aria-hidden="true" />
-      <span style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: 15, fontWeight: 600 }}>{pending.length ? `${pending.length} draft${pending.length > 1 ? "s" : ""} need${pending.length > 1 ? "" : "s"} you` : "Claude is on it"}</span>
-        <span className="sub" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{last?.text ?? "Watching your email and calendar"}</span>
-      </span>
-      {pending.length > 0 && <span className="btn" style={{ height: 40, padding: "0 16px", fontSize: 14 }}>Review</span>}
+      <span className="orb" aria-hidden="true" style={{ width: 32, height: 32 }} />
+      <span style={{ flex: 1, fontSize: 15, fontWeight: 600 }}>{emails ? `${n} email${n > 1 ? "s" : ""} ready to send` : `${n} thing${n > 1 ? "s" : ""} need${n > 1 ? "" : "s"} you`}</span>
+      <span className="chev"><IconNext /></span>
     </Link>
   );
 }

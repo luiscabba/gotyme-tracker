@@ -1,4 +1,4 @@
-import type { Day, Item, Owner, Settings, Task } from "./types";
+import type { Day, Doc, Item, Owner, Settings, Task } from "./types";
 import { addDays, diffDays, fmtDay, fmtShort, lastDay, nowHM, toMin, today } from "./dates";
 
 export function currentAction(i: Item): string {
@@ -157,7 +157,14 @@ export function ownerOf(i: Item, k: number): Owner {
   if (o) return o;
   return k === i.step && i.waiting_on ? "them" : "you";
 }
-export const chaseDue = (i: Item, t = today()) => !!(i.status !== "done" && i.waiting_on && i.chase_on && i.chase_on <= t);
+/* a document's state: missing until a file is added, renew once inside its reminder window */
+export function docState(d: Doc, t = today()): "missing" | "expired" | "renew" | "ok" {
+  if (d.expires_on && d.expires_on < t) return "expired";
+  if (d.expires_on && addDays(d.expires_on, -d.remind_days) <= t) return "renew";
+  return d.files.length ? "ok" : "missing";
+}
+
+export const chaseDue =(i: Item, t = today()) => !!(i.status !== "done" && i.waiting_on && i.chase_on && i.chase_on <= t);
 
 /* people to chase today, each with the items they owe */
 export function chasesDue(items: Item[]): { who: string; items: Item[] }[] {
