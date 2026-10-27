@@ -4,6 +4,7 @@ import { Header } from "@/components/Shell";
 import { useData } from "@/lib/store";
 import { askReset, lockNow } from "@/lib/lock";
 import { scriptableWidget } from "@/lib/widgetScript";
+import { disablePush, enablePush, pushState, sendTest, type PushState } from "@/lib/push";
 import type { Settings } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -14,6 +15,24 @@ export default function SettingsPage() {
   const [origin, setOrigin] = useState("");
   useEffect(() => { setF(settings); }, [settings]);
   useEffect(() => { setOrigin(window.location.origin); }, []);
+  const [push, setPush] = useState<PushState | null>(null);
+  const [pushMsg, setPushMsg] = useState("");
+  const [pushBusy, setPushBusy] = useState(false);
+  useEffect(() => { pushState().then(setPush).catch(() => setPush("unsupported")); }, []);
+  async function togglePush(on: boolean) {
+    setPushBusy(true);
+    setPushMsg("");
+    try {
+      if (on) setPush(await enablePush()); else { await disablePush(); setPush("off"); }
+    } catch (e) { setPushMsg(e instanceof Error ? e.message : "That didn't work. Try again."); }
+    setPushBusy(false);
+  }
+  async function test() {
+    setPushBusy(true);
+    const r = await sendTest();
+    setPushMsg("error" in r ? r.error : r.sent > 0 ? "Sent. It should arrive in a few seconds." : "Nothing was sent. Turn reminders off and on again.");
+    setPushBusy(false);
+  }
   if (!f) return null;
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => { setSaved(false); setF({ ...f, [k]: v }); };
   const num = (v: string) => (v === "" ? null : Number(v));
@@ -42,6 +61,22 @@ export default function SettingsPage() {
         </div>
         <button type="submit" className="btn">{saved ? "Saved" : "Save settings"}</button>
       </form>
+
+      <section className="tile">
+        <span style={{ fontSize: 17, fontWeight: 600 }}>Reminders</span>
+        <span className="sub" style={{ fontSize: 14, lineHeight: 1.4 }}>A nudge at 8:00 and 18:00 Manila time, only when something needs you: steps past their start date, drafts waiting, or someone you should chase. Nothing is sent when you are up to date.</span>
+        {push === "needs-install" && <span className="note">On iPhone, open this in Safari, tap Share, then Add to Home Screen. Open it from the home screen to turn reminders on.</span>}
+        {push === "unsupported" && <span className="note">This browser can't receive reminders.</span>}
+        {push === "blocked" && <span className="note">Notifications are blocked for this app. Allow them in your device settings, then come back.</span>}
+        {push === "off" && <button type="button" className="btn" disabled={pushBusy} onClick={() => togglePush(true)}>{pushBusy ? "Turning on" : "Turn on reminders"}</button>}
+        {push === "on" && (
+          <div className="btns">
+            <button type="button" className="btn" disabled={pushBusy} onClick={test}>Send a test</button>
+            <button type="button" className="btn ghost" disabled={pushBusy} onClick={() => togglePush(false)}>Turn off</button>
+          </div>
+        )}
+        {pushMsg && <span className="sub" role="status">{pushMsg}</span>}
+      </section>
 
       <section className="tile">
         <span style={{ fontSize: 17, fontWeight: 600 }}>Home screen widget</span>
