@@ -58,11 +58,11 @@ export default function Files() {
                     <span className="t"><b>{c}</b><small>{added === list.length ? "All added" : `${added} of ${list.length} added`}</small></span>
                     <span className="chev" style={{ transform: on ? "rotate(90deg)" : "none" }}><IconNext /></span>
                   </button>
-                  {on && list.map((d) => {
+                  {on && list.map((d, j) => {
                     const n = note(d);
                     const s = docState(d);
                     return (
-                      <Link key={d.id} href={`/files/${d.id}`} className="lrow" style={{ minHeight: 48, paddingLeft: 8 }}>
+                      <Link key={d.id} href={`/files/${d.id}`} className="lrow row-in" style={{ minHeight: 48, paddingLeft: 8, animationDelay: `${Math.min(j * 30, 150)}ms` }}>
                         <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 99, flex: "none", boxSizing: "border-box", ...(s === "missing" ? { border: "2px solid rgba(20,21,26,.3)" } : { background: s === "ok" ? "var(--lime-deep)" : s === "renew" ? "var(--amber)" : "var(--red)" }) }} />
                         <span className="t"><span style={{ fontSize: 14 }}>{d.name}</span></span>
                         <span style={{ fontSize: 12, color: n.color }}>{n.text}</span>

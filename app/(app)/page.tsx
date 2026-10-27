@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Header } from "@/components/Shell";
 import { IconNext } from "@/components/Icons";
 import { useData } from "@/lib/store";
@@ -26,7 +26,7 @@ export default function Today() {
         <span style={{ fontSize: 14, fontWeight: 600, color: "var(--muted)" }}>{employed ? `Day ${1 - toStart}` : toStart === 1 ? "Day 1 is tomorrow" : `${toStart} days to Day 1`}</span>
       </Header>
       <HeatCalendar picked={picked} onPick={setPicked} />
-      <DayCard d={picked} onBack={() => setPicked(t)} />
+      <DayCard key={picked} d={picked} onBack={() => setPicked(t)} />
       {employed && picked === t && <ClockTile />}
       <ClaudeStrip />
     </main>
@@ -79,7 +79,7 @@ function DayCard({ d, onBack }: { d: string; onBack: () => void }) {
   const ink: Record<Row["tone"], string> = { late: "var(--danger)", due: "var(--amber-ink)", you: "var(--muted)", claude: "#4B6A00", wait: "var(--indigo-ink)" };
 
   return (
-    <section className="tile flush" aria-label={heading} style={{ paddingTop: 6, paddingBottom: 8 }}>
+    <section className="tile flush fade-in" aria-label={heading} style={{ paddingTop: 6, paddingBottom: 8 }}>
       <div className="between" style={{ alignItems: "baseline", padding: "10px 0 4px" }}>
         <span style={{ fontSize: 17, fontWeight: 700 }}>{heading}</span>
         {d !== t && <button type="button" className="sub" style={{ background: "none", border: "none", padding: "4px 0", fontSize: 13 }} onClick={onBack}>Back to today</button>}
@@ -98,6 +98,12 @@ function DayCard({ d, onBack }: { d: string; onBack: () => void }) {
 
 function HeatCalendar({ picked, onPick }: { picked: string; onPick: (d: string) => void }) {
   const { settings, items, tasks } = useData();
+  const grid = useRef<HTMLDivElement>(null);
+  const [ring, setRing] = useState<{ x: number; y: number; w: number; h: number; ready: boolean } | null>(null);
+  useLayoutEffect(() => {
+    const el = grid.current?.querySelector<HTMLElement>(`[data-day="${picked}"]`);
+    if (el) setRing((r) => ({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight, ready: !!r }));
+  }, [picked, settings?.start_date]);
   if (!settings) return null;
   const t = today();
   const monday = addDays(t, -((dow(t) + 6) % 7));
@@ -107,16 +113,17 @@ function HeatCalendar({ picked, onPick }: { picked: string; onPick: (d: string) 
   const chaseDays = new Set(items.filter((i) => i.status !== "done" && i.waiting_on && i.chase_on).map((i) => i.chase_on!));
   return (
     <div className="tile" style={{ padding: 14, gap: 8 }}>
-      <div className="heat">
+      <div className="heat" ref={grid}>
+        {ring && <span aria-hidden="true" className={`day-ring ${ring.ready ? "ready" : ""}`} style={{ width: ring.w, height: ring.h, transform: `translate(${ring.x}px, ${ring.y}px)` }} />}
         {"MTWTFSS".split("").map((d, k) => <span key={k} className="h">{d}</span>)}
         {cells.map((d) => {
           const day = Number(d.slice(8));
           const sel = d === picked ? "sel" : "";
-          if (d === settings.start_date) return <button type="button" key={d} className={`d day1 ${sel}`} aria-label={`${fmtLong(d)}, Day 1`} aria-pressed={d === picked} onClick={() => onPick(d)}><span>{day}</span><small>Day 1</small></button>;
+          if (d === settings.start_date) return <button type="button" key={d} data-day={d} className={`d day1 ${sel}`} aria-label={`${fmtLong(d)}, Day 1`} aria-pressed={d === picked} onClick={() => onPick(d)}><span>{day}</span><small>Day 1</small></button>;
           const l = dayLoad(d, items, tasks);
           const level = Math.max(l.level, chaseDays.has(d) ? 1 : 0);
           return (
-            <button type="button" key={d} className={`d ${d < t ? "past" : level ? `l${level}` : ""} ${d === t ? "today" : ""} ${sel}`} aria-pressed={d === picked} onClick={() => onPick(d)} aria-label={`${fmtLong(d)}${l.dues ? `, ${l.dues} due` : ""}${l.load ? `, ${l.load} to start` : ""}`}>
+            <button type="button" key={d} data-day={d} className={`d ${d < t ? "past" : level ? `l${level}` : ""} ${d === t ? "today" : ""} ${sel}`} aria-pressed={d === picked} onClick={() => onPick(d)} aria-label={`${fmtLong(d)}${l.dues ? `, ${l.dues} due` : ""}${l.load ? `, ${l.load} to start` : ""}`}>
               {day}{l.urgent && d >= t && <i />}
             </button>
           );

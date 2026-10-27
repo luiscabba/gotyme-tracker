@@ -20,11 +20,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { ready, session, settings, drafts } = useData();
   const [fresh, setFresh] = useState<boolean | null>(null);
   const [reset, setReset] = useState(false);
+  const [enter, setEnter] = useState(false);
   const pending = drafts.filter((d) => d.status === "pending").length;
   const path = usePathname();
   const tabs = TABS.filter((t) => t.href !== "/time" || !settings || settings.start_date <= today());
 
   useEffect(() => { setFresh(isFresh()); setReset(wantsReset()); }, [session]);
+  useEffect(() => { try { if (sessionStorage.getItem("gt_enter")) { sessionStorage.removeItem("gt_enter"); setEnter(true); } } catch { /* storage off */ } }, []);
   useEffect(() => { if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {}); }, []);
 
   if (ready && fresh !== null) {
@@ -33,12 +35,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
     if (!fresh && settings?.passcode_set) return <UnlockScreen />;
   }
   if (!ready || !session || fresh === null) {
-    return <div className="wrap"><div className="tile"><span className="sub">Loading your tracker</span></div></div>;
+    return <div className="lock-wrap" role="status" aria-label="Loading"><span className="orb loading-orb" aria-hidden="true" /><span className="sub">Getting your things</span></div>;
   }
+  const active = tabs.findIndex(({ href }) => (href === "/" ? path === "/" : path.startsWith(href)));
+  const n = tabs.length;
   return (
     <>
-      {children}
-      <nav className="nav" aria-label="Sections" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0,1fr))`, width: `min(${tabs.length * 75}px, calc(100% - 32px))` }}>
+      <div key={path} className={enter ? "app-enter" : "page-in"}>{children}</div>
+      <nav className="nav" aria-label="Sections" style={{ gridTemplateColumns: `repeat(${n}, minmax(0,1fr))`, width: `min(${n * 75}px, calc(100% - 32px))` }}>
+        <span className="pill" aria-hidden="true" style={{ width: `calc((100% - 12px - ${(n - 1) * 4}px) / ${n})`, transform: `translateX(calc(${Math.max(active, 0)} * (100% + 4px)))`, opacity: active < 0 ? 0 : 1 }} />
         {tabs.map(({ href, label, Icon }) => {
           const on = href === "/" ? path === "/" : path.startsWith(href);
           return <Link key={href} href={href} aria-label={href === "/claude" && pending ? `${label}, ${pending} waiting` : label} aria-current={on ? "page" : undefined}><Icon />{href === "/claude" && pending > 0 && !on && <span className="badge" />}</Link>;

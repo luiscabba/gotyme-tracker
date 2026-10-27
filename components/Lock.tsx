@@ -6,7 +6,7 @@ import { relTime } from "@/lib/dates";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
 
-function Keypad({ title, sub, tone, busy, onCode }: { title: string; sub: string; tone?: "error"; busy: boolean; onCode: (c: string) => void }) {
+function Keypad({ title, sub, tone, busy, onCode, celebrate = false }: { title: string; sub: string; tone?: "error"; busy: boolean; onCode: (c: string) => void; celebrate?: boolean }) {
   const [code, setCode] = useState("");
   const [shake, setShake] = useState(false);
   const press = useCallback((k: string) => {
@@ -29,8 +29,9 @@ function Keypad({ title, sub, tone, busy, onCode }: { title: string; sub: string
       <span className="orb" aria-hidden="true" style={{ width: 52, height: 52 }} />
       <h1>{title}</h1>
       <span className={`sub ${tone === "error" ? "err" : ""}`} role="status" aria-live="polite">{sub}</span>
-      <div className={`dots ${shake ? "shake" : ""}`} aria-label={`${code.length} of 6 digits entered`}>
-        {Array.from({ length: 6 }).map((_, i) => <i key={i} className={i < code.length ? "on" : ""} />)}
+      <div className={`dots ${shake ? "shake" : ""} ${celebrate ? "merge" : ""}`} aria-label={celebrate ? "Unlocked" : `${code.length} of 6 digits entered`}>
+        {Array.from({ length: 6 }).map((_, i) => <i key={i} className={i < code.length ? "on" : ""} style={{ "--to": `${(2.5 - i) * 28}px` } as React.CSSProperties} />)}
+        {celebrate && <span className="unlock-orb" aria-hidden="true" />}
       </div>
       <div className="pad">
         {KEYS.map((k, i) => k === "" ? <span key={i} /> : (
@@ -48,11 +49,18 @@ export function UnlockScreen() {
   const [tone, setTone] = useState<"error" | undefined>();
   const [busy, setBusy] = useState(false);
   const [noCode, setNoCode] = useState(false);
+  const [opened, setOpened] = useState(false);
   const onCode = useCallback(async (c: string) => {
     setBusy(true);
     const r = await unlock(c);
+    if (r.ok) {
+      setOpened(true);
+      setSub("Welcome back");
+      try { sessionStorage.setItem("gt_enter", "1"); } catch { /* storage off */ }
+      setTimeout(() => window.location.reload(), 850);
+      return;
+    }
     setBusy(false);
-    if (r.ok) { window.location.reload(); return; }
     setTone("error");
     if (r.error === "wrong") setSub(r.left && r.left > 0 ? `Wrong passcode. ${r.left} ${r.left === 1 ? "try" : "tries"} before a lockout.` : "Wrong passcode.");
     else if (r.error === "locked") setSub(`Too many tries. Try again after ${r.until ? relTime(r.until) : "a while"}.`);
@@ -62,7 +70,7 @@ export function UnlockScreen() {
   }, []);
   return (
     <main className="lock-wrap">
-      <Keypad title="Tracker" sub={sub} tone={tone} busy={busy} onCode={onCode} />
+      <Keypad title="Tracker" sub={sub} tone={tone} busy={busy} onCode={onCode} celebrate={opened} />
       <Link href="/login" className="sub lock-alt" style={noCode ? { fontWeight: 600, color: "var(--ink)" } : {}}>Forgot passcode? Email me a link</Link>
     </main>
   );

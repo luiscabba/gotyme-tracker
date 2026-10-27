@@ -65,10 +65,10 @@ export default function Requirements() {
                     <span className="t"><span style={{ fontSize: 15, fontWeight: on ? 600 : 400 }}>{g.name}</span></span>
                     <span className="chev" style={{ transform: on ? "rotate(90deg)" : "none" }}><IconNext /></span>
                   </button>
-                  {on && g.list.map((i) => {
+                  {on && g.list.map((i, j) => {
                     const l = g.line(i);
                     return (
-                      <Link key={i.id} href={`/item/${i.id}`} className="lrow" style={{ paddingLeft: 8 }}>
+                      <Link key={i.id} href={`/item/${i.id}`} className="lrow row-in" style={{ paddingLeft: 8, animationDelay: `${Math.min(j * 30, 150)}ms` }}>
                         <span aria-hidden="true" className={`sd ${l.tone}`} />
                         <span className="t"><b className={l.tone === "done" ? "done-t" : ""}>{i.title}</b><small style={l.tone === "now" ? { color: "var(--danger)" } : l.tone === "soon" ? { color: "var(--amber-ink)" } : l.tone === "claude" ? { color: "#4B6A00" } : {}}>{l.text}</small></span>
                       </Link>

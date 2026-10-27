@@ -77,7 +77,7 @@ a{color:var(--indigo-ink)}
 /* nav */
 .nav{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(22px + env(safe-area-inset-bottom,0px)); width:min(300px, calc(100% - 32px)); height:62px; padding:6px; background:rgba(255,255,255,.55); border:1px solid rgba(255,255,255,.85); -webkit-backdrop-filter:blur(24px) saturate(180%); backdrop-filter:blur(24px) saturate(180%); border-radius:99px; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 10px 30px rgba(0,0,0,.18); z-index:20}
 .nav a{position:relative; border-radius:99px; color:rgba(20,21,26,.55); display:flex; align-items:center; justify-content:center}
-.nav a[aria-current="page"]{background:var(--ink); color:#FFFFFF}
+.nav a[aria-current="page"]{color:#FFFFFF}
 .nav .badge{position:absolute; top:7px; right:calc(50% - 16px); width:8px; height:8px; border-radius:99px; background:var(--red); box-shadow:0 0 0 2px rgba(255,255,255,.9)}
 
 /* heat calendar */
@@ -89,7 +89,6 @@ a{color:var(--indigo-ink)}
 .heat .d.l2{background:rgba(198,244,50,.85)}
 .heat .d.l3{background:var(--heat)}
 .heat .d.today{font-weight:800}
-.heat .d.sel{box-shadow:0 0 0 2px var(--ink), 0 0 0 4px #FFFFFF}
 .heat button.d{font-family:inherit; cursor:pointer; padding:0; width:100%}
 .heat .d i{position:absolute; top:5px; right:6px; width:5px; height:5px; border-radius:99px; background:var(--red)}
 .heat .d.day1{grid-column:span 2; justify-content:space-between; padding:0 12px; background:var(--ink); color:#FFFFFF; border-color:var(--ink); font-size:14px; font-weight:700}
@@ -163,7 +162,7 @@ a{color:var(--indigo-ink)}
 .file{display:flex; gap:10px; align-items:center; min-height:44px; padding:8px 12px; border-radius:14px; background:rgba(255,255,255,.6); color:var(--ink); text-decoration:none; font-size:14px; border:1px solid var(--edge); overflow-wrap:anywhere}
 .upload{display:flex; align-items:center; justify-content:center; min-height:52px; border-radius:22px; border:1.5px dashed rgba(20,21,26,.25); background:rgba(255,255,255,.3); color:rgba(20,21,26,.7); font-size:14px; font-weight:600; cursor:pointer}
 .code{font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; background:#FFFFFF; border:1px solid rgba(20,21,26,.1); border-radius:14px; padding:12px; white-space:pre-wrap; overflow-wrap:anywhere; max-height:220px; overflow:auto}
-@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important} }
+
 
 /* lock */
 .lock-wrap{min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; padding:calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))}
@@ -191,3 +190,49 @@ a{color:var(--indigo-ink)}
 .rail .pin.claude{border-color:var(--lime-deep)}
 .rail .pin.them{border-color:var(--indigo)}
 .undo{background:none; border:none; padding:0 0 0 8px; font-size:12px; font-weight:600; color:var(--indigo-ink)}
+
+/* motion: calm by default, every move under half a second except the unlock opening */
+:root{--ease-out:cubic-bezier(.16,1,.3,1); --ease-in:cubic-bezier(.4,0,1,1)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{to{opacity:0}}
+@keyframes riseIn{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:none}}
+@keyframes breathe{0%,100%{transform:scale(.9); opacity:.75}50%{transform:scale(1); opacity:1}}
+@keyframes sheetUp{from{transform:translateY(28px); opacity:.5}to{transform:none; opacity:1}}
+@keyframes orbIn{0%{transform:scale(0); opacity:0}60%{transform:scale(1.08); opacity:1}100%{transform:scale(1); opacity:1}}
+@keyframes mergeDot{to{transform:translateX(var(--to)) scale(.4); opacity:0}}
+@keyframes slideAway{to{transform:translateX(40px); opacity:0}}
+@keyframes tintLime{to{background:rgba(198,244,50,.28)}}
+@keyframes drawCheck{from{stroke-dashoffset:20}to{stroke-dashoffset:0}}
+@keyframes popIn{0%{transform:scale(.6)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+
+.page-in{animation:riseIn 240ms var(--ease-out) backwards}
+.app-enter{animation:riseIn 460ms var(--ease-out) backwards}
+.fade-in{animation:fadeIn 200ms ease-out backwards}
+.row-in{animation:riseIn 220ms var(--ease-out) backwards}
+.loading-orb{width:48px; height:48px; animation:breathe 2.4s ease-in-out infinite}
+.scrim{animation:fadeIn 200ms ease-out}
+.sheet{animation:sheetUp 320ms var(--ease-out)}
+.btn{transition:transform 100ms ease-out, background-color 150ms, opacity 150ms}
+.btn:active{transform:scale(.97)}
+.box{transition:background-color 160ms ease-out, border-color 160ms ease-out}
+.box.on svg path, .box.lime svg path{stroke-dasharray:20; animation:drawCheck 240ms ease-out 60ms backwards}
+.lrow.leaving{animation:tintLime 200ms ease-out forwards, slideAway 280ms var(--ease-in) 240ms forwards}
+.rail .pin.just{background:var(--lime); border:none; animation:popIn 320ms var(--ease-out)}
+.dots{position:relative}
+.dots.merge i{background:var(--ink); border-color:var(--ink); animation:mergeDot 420ms var(--ease-out) forwards}
+.unlock-orb{position:absolute; left:50%; top:50%; width:32px; height:32px; margin:-16px 0 0 -16px; border-radius:99px; background:var(--lime); border:2px solid var(--lime-deep); box-sizing:border-box; animation:orbIn 520ms var(--ease-out) 260ms both}
+.heat{position:relative}
+.day-ring{position:absolute; left:0; top:0; border-radius:14px; box-shadow:0 0 0 2px var(--ink), 0 0 0 4px #FFFFFF; pointer-events:none; z-index:1}
+.day-ring.ready{transition:transform 380ms var(--ease-out)}
+.nav .pill{position:absolute; top:6px; left:6px; bottom:6px; border-radius:99px; background:var(--ink); transition:transform 320ms var(--ease-out), opacity 200ms; pointer-events:none}
+.nav a{z-index:1; transition:color 200ms}
+
+@media (prefers-reduced-motion: reduce){
+  .page-in, .app-enter, .row-in, .sheet{animation-name:fadeIn}
+  .loading-orb, .dots.shake, .rail .pin.just{animation:none}
+  .dots.merge i{animation:fadeOut 200ms forwards}
+  .unlock-orb{animation:fadeIn 200ms 100ms both}
+  .lrow.leaving{animation:tintLime 150ms forwards, fadeOut 200ms 150ms forwards}
+  .day-ring.ready, .nav .pill{transition:opacity 150ms}
+  .btn:active{transform:none}
+}

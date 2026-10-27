@@ -21,6 +21,7 @@ export default function ItemPage() {
   const isNew = id === "new";
   const item = isNew ? null : items.find((i) => i.id === id);
   const [editing, setEditing] = useState(isNew);
+  const [finishing, setFinishing] = useState(false);
 
   useEffect(() => { if (!isNew && items.length && !item) router.replace("/requirements"); }, [isNew, items, item, router]);
 
@@ -28,6 +29,11 @@ export default function ItemPage() {
   const i = item ?? blank();
   const c = whenChip(i);
   const steps = i.steps.length ? i.steps : [i.title];
+  const finish = () => {
+    if (finishing) return;
+    setFinishing(true);
+    setTimeout(async () => { await advance(i); setFinishing(false); }, 340);
+  };
   const waiting = !isNew && i.status !== "done" && !!i.waiting_on;
   const due = chaseDue(i);
   const waited = i.waiting_since ? workdaysBetween(i.waiting_since, today()) : 0;
@@ -73,7 +79,7 @@ export default function ItemPage() {
                 const cur = k === i.step && i.status !== "done";
                 const own = cur && i.waiting_on ? "them" : ownerOf(i, k);
                 const state = k < i.step || i.status === "done" ? "done" : cur ? (i.waiting_on ? "wait" : own === "claude" ? "claude" : "now") : "";
-                const pin = state || (own === "you" ? "" : own);
+                const pin = cur && finishing ? "just" : state || (own === "you" ? "" : own);
                 return (
                   <div key={s + k}>
                     <span aria-hidden="true" className={`pin ${pin}`} />
@@ -82,14 +88,14 @@ export default function ItemPage() {
                         <span style={{ fontSize: state === "now" || state === "claude" ? 16 : 15, fontWeight: 600 }} className={state === "done" ? "done-t" : ""}>{s}</span>
                         {state !== "done" && <span className={`own ${own}`}>{ownerLabel(i, own)}</span>}
                       </span>
-                      {state === "claude" && <><span className="note">Claude is doing this step. It moves on when it is done.</span><button type="button" className="sub" style={{ background: "none", border: "none", padding: 0, alignSelf: "flex-start" }} onClick={() => advance(i)}>I did it myself</button></>}
+                      {state === "claude" && <><span className="note">Claude is doing this step. It moves on when it is done.</span><button type="button" className="sub" style={{ background: "none", border: "none", padding: 0, alignSelf: "flex-start" }} onClick={finish}>I did it myself</button></>}
                       {(state === "now" || state === "wait") && (
                         <>
                           {i.note && <span className="sub" style={{ fontSize: 13, lineHeight: 1.4, marginTop: -6 }}>{i.note}</span>}
                           {state === "wait" ? <span className="note">Waiting on {i.waiting_on}. Claude will update this when it arrives.</span> : (
                             <div className={i.link ? "btns" : ""} style={i.link ? {} : { display: "flex", flexDirection: "column" }}>
                               {i.link && <a className="btn" href={i.link} target="_blank" rel="noopener">Open email</a>}
-                              <button type="button" className={i.link ? "btn ghost" : "btn"} onClick={() => advance(i)}>Mark done</button>
+                              <button type="button" className={i.link ? "btn ghost" : "btn"} onClick={finish}>Mark done</button>
                             </div>
                           )}
                         </>
